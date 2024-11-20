@@ -21,6 +21,7 @@ use App\Services\ProductGalleryService;
 use App\Interface\SalesRepositoryInterface;
 use App\Repositories\SalesRepository;
 use App\Services\SalesService;
+use Illuminate\Pagination\Paginator;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -60,6 +61,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Paginator::useBootstrapFive();
     }
 }

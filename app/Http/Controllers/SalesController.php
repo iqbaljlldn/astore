@@ -15,9 +15,10 @@ class SalesController extends Controller
      */
     public function index()
     {
+        $type_menu = 'sales';
         $items = $this->salesService->all();
 
-        return view('sales.index', compact('items'));
+        return view('pages.sales.index', compact('items', 'type_menu'));
     }
 
     /**
@@ -25,7 +26,8 @@ class SalesController extends Controller
      */
     public function create()
     {
-        return view('sales.create');
+        $type_menu = 'sales';
+        return view('pages.sales.create', compact('type_menu'));
     }
 
     /**
@@ -34,30 +36,32 @@ class SalesController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'user_id' => 'required|integer|exists:users,id',
             'payment_method' => 'sometimes|string',
-            'payment_status' => 'required|string|in:pending',
+            'payment_status' => 'sometimes|string',
         ]);
 
-        $validated['user_id'] = $request->user()->id;
+        $validated['users_id'] = $request->user()->id;
         $validated['total_price'] = 0;
 
+        
         DB::beginTransaction();
         try {
             $sale = $this->salesService->create($validated);
+            
             $log = [
-            'user_id' => $request->user()->id,
-            'description' => $request->user()->name . " Menambahkan sales baru",
-            'action' => 'Create',
-            'ip_address' => $request->ip(),
+                'users_id' => $request->user()->id,
+                'description' => $request->user()->name . " Menambahkan sales baru",
+                'action' => 'Create',
+                'ip_address' => $request->ip(),
             ];
             AuditLogs::create($log);
 
             DB::commit();
-            return redirect()->route('sale-items.show', ['sale' => $sale->id]);
-        } catch(\Exception $e) {
+
+            return redirect()->route('sale-item-create', ['saleId' => $sale->id]);
+        } catch (\Exception $e) {
             DB::rollback();
-            return redirect()->back()->withErrors(['error' => 'Terjadi kesalahan saat menambahkan data: '.$e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => 'Terjadi kesalahan saat menambahkan data: ' . $e->getMessage()]);
         }
     }
 
@@ -66,9 +70,10 @@ class SalesController extends Controller
      */
     public function show($id)
     {
+        $type_menu = 'sales';
         $item = $this->salesService->with('saleItems')->find($id);
 
-        return view('sales.show', compact('item'));
+        return view('sales.show', compact('item', 'type_menu'));
     }
 
     /**
@@ -76,9 +81,10 @@ class SalesController extends Controller
      */
     public function edit($id)
     {
+        $type_menu = 'sales';
         $item = $this->salesService->with('saleItems')->find($id);
 
-        return view('sales.edit', compact('item'));
+        return view('sales.edit', compact('item', 'type_menu'));
     }
 
     /**
@@ -98,18 +104,18 @@ class SalesController extends Controller
             $item->update($validated);
 
             $log = [
-            'user_id' => $request->user()->id,
-            'description' => $request->user()->name . " Mengedit sales",
-            'action' => 'Edit',
-            'ip_address' => $request->ip(),
+                'users_id' => $request->user()->id,
+                'description' => $request->user()->name . " Mengedit sales",
+                'action' => 'Edit',
+                'ip_address' => $request->ip(),
             ];
             AuditLogs::create($log);
 
             DB::commit();
             return redirect()->route('sales.show', $item->id);
-        } catch(\Exception $e) {
+        } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->withErrors(['error' => 'Terjadi kesalahan saat mengedit data: '.$e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => 'Terjadi kesalahan saat mengedit data: ' . $e->getMessage()]);
         }
     }
 
@@ -124,7 +130,7 @@ class SalesController extends Controller
             $item->delete();
 
             $log = [
-                'user_id' => $request->user()->id,
+                'users_id' => $request->user()->id,
                 'description' => $request->user()->name . " Menghapus sales",
                 'action' => 'Delete',
                 'ip_address' => $request->ip(),

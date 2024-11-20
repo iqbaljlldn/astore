@@ -8,8 +8,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class AuditLogs extends Model
 {
     use HasFactory;
+
+    protected $table = 'audit_logs';
     protected $fillable = [
-        'user_id',
+        'users_id',
         'description',
         'action',
         'ip_address'

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Suppliers;
 use App\Models\Categories;
 use App\Models\ProductGalleries;
+use App\Models\SaleItems;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -12,13 +13,12 @@ class Products extends Model
 {
     use HasFactory;
     protected $fillable = [
+        'categories_id',
         'name',
-        'price',
+        'buying_price',
+        'discount',
+        'selling_price',
         'stock',
-        'category_id',
-        'description',
-        'barcode',
-        'cost_price'
     ];
 
     public function categories() {

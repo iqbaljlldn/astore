@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\ProductStockUpdated;
+use App\Events\SaleItemsCreated;
 use App\Models\SaleItems;
 use App\Models\AuditLogs;
 use App\Models\Sales;
@@ -14,19 +16,21 @@ class SaleItemsController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index($saleId)
     {
-        $items = SaleItems::with('sale')->get();
+        $type_menu = 'sales';
+        $items = SaleItems::with('sale')->where('sales_id', $saleId)->get();
 
-        return view('sale-items.index', compact('items'));
+        return view('sale-items.index', compact('items', 'type_menu'));
     }
 
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
+    public function create($saleId)
     {
-        return view('sale-items.create');
+        $type_menu = 'sales';
+        return view('pages.sale-items.create', compact('saleId', 'type_menu'));
     }
 
     /**
@@ -35,28 +39,57 @@ class SaleItemsController extends Controller
     public function store(Request $request, $saleId)
     {
         $validated = $request->validate([
-            'items.*.product_id'=> 'required|exists:products,id',
+            'items.*.products_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.price' => 'required|numeric|min:0',
         ]);
 
         DB::beginTransaction();
         try {
+            $productIds = array_column($validated['item'], 'products_id');
+
+            $products = Products::whereIn('id', $productIds)->lockForUpdate()->get()->keyBy('id');
+
+            $quantities = [];
+
+            foreach ($validated['items'] as $itemData) {
+                $productId = $itemData['products_id'];
+                if (!isset($quantities[$productId])) {
+                    $quantities[$productId] = 0;
+                }
+                $quantities[$productId] += $itemData['quantity'];
+            }
+
+            $errors = [];
+            foreach ($quantities as $productId => $totalQuantity) {
+                if (!isset($products[$productId])) {
+                    $errors[] = "Produk dengan ID $productId tidak ditemukan.";
+                    continue;
+                }
+                $product = $products[$productId];
+                if ($product->stock < $totalQuantity) {
+                    $errors[] = "Stok produk {$product->name} tidak mencukupi (tersisa {$product->stock}), dibutuhkan {$totalQuantity}";
+                }
+            }
+
+            if (!empty($errors)) {
+                DB::rollBack();
+                return redirect()->back()->withErrors(['error' => $errors]);
+            }
+
             $totalAddedPrice = 0;
 
             foreach ($validated['items'] as $itemData) {
-
-                $product = Products::where('id', $itemData['product_id'])->lockForUpdate()->firstOrFail();
-
-                if ($product->stock < $itemData['quantity']) {
-                    return redirect()->back()->withErrors(['error' => 'Stock tidak mencukupi']);
-                }
+                $productId = $itemData['products_id'];
+                $product = $product[$productId];
 
                 $product->stock -= $itemData['quantity'];
                 $product->save();
 
+                event(new ProductStockUpdated($product));
+
                 $itemData['subtotal'] = $itemData['quantity'] * $itemData['price'];
-                $itemData['sale_id'] = $saleId;
+                $itemData['sales_id'] = $saleId;
                 SaleItems::create($itemData);
 
                 $totalAddedPrice += $itemData['subtotal'];
@@ -75,10 +108,13 @@ class SaleItemsController extends Controller
             AuditLogs::create($log);
 
             DB::commit();
-            return redirect()->route('sales.show', $saleId);
+
+            event(new SaleItemsCreated($sale));
+
+            return redirect()->route('sales.edit', ['sale' => $sale->id]);
         } catch (\Exception $e) {
             DB::rollback();
-            return redirect()->back()->withErrors(['error' => 'Terjadi kesalahan saat menambahkan data: '.$e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => 'Terjadi kesalahan saat menambahkan data: ' . $e->getMessage()]);
         }
     }
 
@@ -87,6 +123,7 @@ class SaleItemsController extends Controller
      */
     public function show($id)
     {
+        $type_menu = 'sales';
         $item = SaleItems::findOrFail($id);
 
         return view('sale-items.show', compact('item'));
@@ -97,9 +134,10 @@ class SaleItemsController extends Controller
      */
     public function edit($id)
     {
+        $type_menu = 'sales';
         $item = SaleItems::findOrFail($id);
 
-        return view('sale-items.edit', compact('item'));
+        return view('sale-items.edit', compact('item', 'type_menu'));
     }
 
     /**
@@ -117,7 +155,7 @@ class SaleItemsController extends Controller
         try {
             $item = SaleItems::findOrFail($id);
 
-            $oldProduct = Products::where('id',$item->product_id)->lockForUpdate()->firstOrFail();
+            $oldProduct = Products::where('id', $item->product_id)->lockForUpdate()->firstOrFail();
             $newProduct = Products::where('id', $validated['product_id'])->lockForUpdate()->firstOrFail();
 
             $difference = $validated['quantity'] - $item->quantity;
@@ -152,7 +190,7 @@ class SaleItemsController extends Controller
 
             $log = [
                 'user_id' => $request->user()->id,
-                'description' => $request->user()->name . " Mengedit sale item ".$item->id,
+                'description' => $request->user()->name . " Mengedit sale item " . $item->id,
                 'action' => 'Edit',
                 'ip_address' => $request->ip(),
             ];

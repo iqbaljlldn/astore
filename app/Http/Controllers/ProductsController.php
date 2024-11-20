@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLogs;
+use App\Models\Products;
+use App\Models\Categories;
 use App\Models\ProductGalleries;
-use Illuminate\Http\Request;
 use App\Services\ProductsService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -17,9 +19,11 @@ class ProductsController extends Controller
      */
     public function index()
     {
-        $items = $this->productService->all();
+        $items = Products::paginate(20);
+        $categories = Categories::all();
+        $type_menu = 'products';
 
-        return view('products.index', compact('items'));
+        return view('pages.products.index', compact('items', 'type_menu','categories'));
     }
 
     /**
@@ -27,38 +31,32 @@ class ProductsController extends Controller
      */
     public function create()
     {
-        return view('products.create');
+        $categories = Categories::all();
+        $type_menu = 'products';
+
+        return view('pages.products.create', compact('type_menu','categories'));
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request, $id)
+    public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:100',
-            'price' => 'required|integer',
-            'stock' => 'required|integer',
-            'category_id' => 'required|exists:categories,id',
-            'description' => 'sometimes|string|max:2550',
-            'barcode' => 'required|string|max:10',
-            'cost_price' => 'required|integer',
-            'photos' => 'sometimes|file|mimes:jpg,png,jpeg,svg|max:16384'
+            'categories_id' => 'required|exists:categories,id',
+            'name' => 'required|string|max:50',
+            'buying_price' => 'required|integer|max:255',
+            'discount' => 'required|integer|max:255',
+            'selling_price' => 'required|integer|max:255',
+            'stock' => 'required|integer|max:255'
         ]);
 
         DB::beginTransaction();
         try {
             $item = $this->productService->create($validated);
-            if ($request->hasFile('photos')) {
-                $gallery = [
-                    'product_id' => $item->id,
-                    'url_path' => $request->file('photos')->store('assets/products', 'public'),
-                ];
-                ProductGalleries::create($gallery);
-            }
 
             $log = [
-                'user_id' => $request->user()->id,
+                'users_id' => $request->user()->id,
                 'description' => $request->user()->name . " Menambahkan Product baru",
                 'action' => 'Create',
                 'ip_address' => $request->ip(),
@@ -69,7 +67,7 @@ class ProductsController extends Controller
             return redirect()->route('products.show', $item->id);
         } catch (\Exception $e) {
             DB::rollback();
-            return redirect()->back()->withErrors(['error' => 'Terjadi kesalahan saat menambahkan data'.$e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => 'Terjadi kesalahan saat menambahkan data' . $e->getMessage()]);
         }
     }
 
@@ -79,8 +77,9 @@ class ProductsController extends Controller
     public function show($id)
     {
         $item = $this->productService->find($id);
+        $type_menu = 'products';
 
-        return view('products.show', compact('item'));
+        return view('pages.products.show', compact('item', 'type_menu'));
     }
 
     /**
@@ -89,8 +88,9 @@ class ProductsController extends Controller
     public function edit($id)
     {
         $item = $this->productService->find($id);
+        $type_menu = 'products';
 
-        return view('products.edit', compact('item'));
+        return view('pages.products.edit', compact('item', 'type_menu'));
     }
 
     /**
@@ -137,7 +137,7 @@ class ProductsController extends Controller
             return redirect()->route('products.show', $item->id);
         } catch (\Exception $e) {
             DB::rollback();
-            return redirect()->back()->withErrors(['error' => 'Terjadi kesalahan saat mengedit data'.$e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => 'Terjadi kesalahan saat mengedit data' . $e->getMessage()]);
         }
     }
 
@@ -168,7 +168,7 @@ class ProductsController extends Controller
             return redirect()->route('products.index');
         } catch (\Exception $e) {
             DB::rollback();
-            return redirect()->back()->withErrors(['error' => 'terjadi kesalahan saat menghapus data'.$e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => 'terjadi kesalahan saat menghapus data' . $e->getMessage()]);
         }
     }
 }

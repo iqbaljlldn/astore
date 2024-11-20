@@ -4,7 +4,7 @@ namespace App\Models;
 
 use App\Models\SaleItems;
 use App\Models\User;
-use App\Models\Transactions;
+use App\Models\Customers;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -12,10 +12,14 @@ class Sales extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'user_id',
+        'users_id',
+        'customers_id',
+        'total_items',
+        'discon',
         'total_price',
+        'pay',
         'payment_method',
-        'payment_status'
+        'payment_status',
     ];
 
     public function saleItems() {
@@ -28,5 +32,8 @@ class Sales extends Model
 
     public function transactions() {
         return $this->hasMany(Transactions::class);
+    }
+    public function customer() {
+        return $this->belongsTo(Customers::class);
     }
 }

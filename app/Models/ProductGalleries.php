@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Products;
 
 class ProductGalleries extends Model
 {
+    use HasFactory;
     protected $fillable = [
-        'product_id',
+        'products_id',
         'url_path'
     ];
 

@@ -19,13 +19,12 @@ class ProductsFactory extends Factory
         $categories = \App\Models\Categories::pluck('id')->toArray();
 
         return [
+            'categories_id' => $this->faker->randomElement($categories),
             'name' => $this->faker->domainName(),
-            'price' => $this->faker->randomFloat(0, 1000, 500000),
+            'buying_price' => $this->faker->randomFloat(0, 1000, 500000),
+            'discount' => $this->faker->numberBetween(1,99),
+            'selling_price' => $this->faker->randomFloat(1000,1000,10000),
             'stock' => $this->faker->numberBetween(1,99),
-            'category_id' => $this->faker->randomElement($categories),
-            'barcode' => $this->faker->numberBetween(100000,999999),
-            'description' => $this->faker->realText(),
-            'cost_price' => $this->faker->randomFloat(1000,1000,10000),
         ];
     }
 }

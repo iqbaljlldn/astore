@@ -17,13 +17,15 @@ class SalesFactory extends Factory
     public function definition(): array
     {
         $users = \App\Models\User::pluck('id')->toArray();
-        $prices = \App\Models\SaleItems::where('sale_id', 'id')->pluck('subtotal')->toArray();
-
-        $totalPrice = array_sum($prices);
+        $customers = \App\Models\Customers::pluck('id')->toArray();
 
         return [
-            'user_id' => $this->faker->randomElement($users),
-            'total_price' => $totalPrice,
+            'users_id' => $this->faker->randomElement($users),
+            'customers_id' => $this->faker->randomElement($customers),
+            'total_items' => $this->faker->numberBetween(1,150),
+            'discount' => $this->faker->numberBetween(0,100),
+            'total_price' => $this->faker->numberBetween(500, 1000000),
+            'pay' => $this->faker->numberBetween(1000,1000000),
             'payment_method' => $this->faker->randomElement(['cash','card','e-wallet']),
             'payment_status' => $this->faker->randomElement(['paid','unpaid','refund','pending'])
         ];
